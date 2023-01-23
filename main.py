@@ -95,11 +95,11 @@ def common_message(update, context):
         info(f'Користувач {user.id} @{user.username} почав тест')
         context.user_data['quiz'] = {}
         context.user_data['quiz']['answers'] = {}
-        starttime = datetime.now()
-        context.user_data['quiz']['starttime'] = starttime
+        start_time = datetime.now()
+        context.user_data['quiz']['start_time'] = start_time
 
         msg.bot.send_message(msg.chat_id,
-                             text=f'Тест почато о {starttime}',
+                             text=f'Тест почато о {start_time}',
                              reply_markup=telegram.ReplyKeyboardRemove())
     else:
         # Зберігаємо відповідь
@@ -122,8 +122,10 @@ def common_message(update, context):
         context.user_data['quiz']['current_qid'] = None
 
         # Рахуємо чи користувач вклався у виділений час
-        endtime = datetime.now()
-        test_time = endtime - context.user_data['quiz']['starttime']
+        end_time = datetime.now()
+        if not context.user_data['quiz'].get('end_time'):
+            context.user_data['quiz']['end_time'] = end_time
+        test_time = context.user_data['quiz']['end_time'] - context.user_data['quiz']['start_time']
         test_time_minutes = test_time.seconds / 60
 
         if test_time_minutes > DURATION:
