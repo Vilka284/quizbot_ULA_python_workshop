@@ -1,25 +1,37 @@
 """
-Simple Quiz Bot for Telegram
+Телеграм бот для опитувань.
+ULA Python workshop
 """
 
-from datetime import datetime
 import logging
-from logging import debug, info
-from pathlib import Path
 import random
+from datetime import datetime
+from logging import info
+
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, PicklePersistence
 import yaml  # pyyaml
+from telegram.ext import Updater, CommandHandler, MessageHandler, PicklePersistence
 
-
+# Для нашого воркшопу можемо використовувати і print(),
+# але логер дає більше можливостей у відстеженні роботи бота
 logging.basicConfig(
-    filename='conversations.log',
+    # filename='conversations.log',
     format='%(asctime)s %(levelname)-7s %(name)s %(message)s')
-logging.getLogger().setLevel('DEBUG')
+logging.getLogger().setLevel('INFO')
 
-TOKEN_FILE = 'token.txt'
-TOKEN = Path(TOKEN_FILE).read_text().strip()
-AUTHORIZED_USERS = ['makukha']
+# Перед початком роботи потрібно створити бота через BotFather та вставити у змінну TOKEN секретний ключ
+TOKEN = "TOKEN HERE"
+
+# Список користувачів, що можуть проходити квест
+# def is_user_authorized(user, msg):
+#     authorized_users = ['crinitus_vulpi']
+#     if user.username in authorized_users:
+#         return True
+#     msg.bot.send_message(msg.chat_id,
+#                          text=f'Тобі не дозволено проходити тест! Звернись до адміністратора.',
+#                          reply_markup=telegram.ReplyKeyboardRemove())
+#     return False
+
 
 DURATION = 5
 
@@ -32,94 +44,109 @@ class Question:
         self.answers = {}
         self.correct = None
         for a in answers:
-            aid = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[len(self.answers)]
+            letter_choice = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[len(self.answers)]
             if isinstance(a, str):
-                self.answers[aid] = a
-            elif isinstance(a, dict) and len(a) == 1 and \
-                    'correct' in a and self.correct is None:
-                self.answers[aid] = a['correct']
-                self.correct = aid
+                self.answers[letter_choice] = a
+            elif isinstance(a, dict) and len(a) == 1 and 'correct' in a and self.correct is None:
+                self.answers[letter_choice] = a['correct']
+                self.correct = letter_choice
             else:
-                raise ValueError(
-                    f'Incorrect answers in question {qid}: {answers}')
+                raise ValueError(f'Incorrect answers in question {qid}: {answers}')
 
-QUESTIONS = {q['id']: Question(q['id'], q['q'], q['a'])
-    for q in yaml.load(Path('questions.yaml').read_text())}
+
+with open("questions.yaml", "r") as file:
+    yaml_file = yaml.safe_load(file)
+
+# Створюємо питання
+QUESTIONS = {q['id']: Question(q['id'], q['q'], q['a']) for q in yaml_file}
 
 
 def start(update, context):
-    """Command handler for command /start"""
+    """Функція для команди /start"""
 
     msg = update.message
     user = msg.from_user
-    debug(f'Quiz bot entered by user: {user.id} @{user.username} "{user.first_name} {user.last_name}"')
+    info(f'Користувач виконав команду /start: {user.id} @{user.username} "{user.first_name} {user.last_name}"')
 
-    if AUTHORIZED_USERS and user.username not in AUTHORIZED_USERS:
-        return
+    # Дозвіл тільки переліченим користувачам проходити тест
+    # if not is_user_authorized(user, msg):
+    #     return
 
     if 'username' not in context.user_data:
         context.user_data['username'] = user.username
 
     msg.bot.send_message(msg.chat_id,
-        text=f'Давайте начнем тест. У вас будет {DURATION} минут на {len(QUESTIONS)} вопросов. Готовы?',
-        reply_markup=telegram.ReplyKeyboardMarkup([['Начать тест']]))
+                         text=f'Починаємо тест. У тебе буде {DURATION} хвилин на {len(QUESTIONS)} питань. Приготувались?',
+                         reply_markup=telegram.ReplyKeyboardMarkup([['Почати тест']]))
 
 
 def common_message(update, context):
-    """General response handler"""
+    """Функція для текстових повідомлень"""
 
     msg = update.message
     user = msg.from_user
-    debug(f'Message received from {user.id} @{user.username}: {msg.text}')
+    info(f'Отримано повідомлення від {user.id} @{user.username}: {msg.text}')
 
-    if AUTHORIZED_USERS and user.username not in AUTHORIZED_USERS:
-         return
+    # Дозвіл тільки переліченим користувачам проходити тест
+    # if not is_user_authorized(user, msg):
+    #     return
 
     if 'quiz' not in context.user_data:
-
-        info(f'Quiz started by {user.id} @{user.username}')
-
+        info(f'Користувач {user.id} @{user.username} почав тест')
         context.user_data['quiz'] = {}
         context.user_data['quiz']['answers'] = {}
         starttime = datetime.now()
         context.user_data['quiz']['starttime'] = starttime
 
         msg.bot.send_message(msg.chat_id,
-            text=f'Тест начат в {starttime}',
-            reply_markup=telegram.ReplyKeyboardRemove())
-
+                             text=f'Тест почато о {starttime}',
+                             reply_markup=telegram.ReplyKeyboardRemove())
     else:
-        # save response
-        context.user_data['quiz']['answers'][context.user_data['quiz']['current_qid']] = msg.text
+        # Зберігаємо відповідь
+        current_question = context.user_data['quiz']['current_qid']
+        context.user_data['quiz']['answers'][current_question] = msg.text
 
-    # ask the question
-
+    # Ставимо запитання
     questions_left = set(QUESTIONS) - set(context.user_data['quiz']['answers'])
-
     if len(questions_left) > 0:
-
+        # Обираємо випадкове питання
         question = QUESTIONS[random.sample(questions_left, 1)[0]]
-
         msg.bot.send_message(msg.chat_id,
-            text=f'{question.text}\n' + \
-                '\n'.join(f'{aid}. {text}' for aid, text in sorted(question.answers.items())),
-            reply_markup=telegram.ReplyKeyboardMarkup([[aid for aid in sorted(question.answers)]]))
+                             text=f'{question.text}\n' +
+                                  '\n'.join(f'{aid}. {text}' for aid, text in sorted(question.answers.items())),
+                             reply_markup=telegram.ReplyKeyboardMarkup([[aid for aid in sorted(question.answers)]]))
 
         context.user_data['quiz']['current_qid'] = question.qid
 
     else:
-        msg.bot.send_message(msg.chat_id,
-            text=f'Тест пройден!',
-            reply_markup=telegram.ReplyKeyboardRemove())
         context.user_data['quiz']['current_qid'] = None
+
+        # Рахуємо чи користувач вклався у виділений час
+        endtime = datetime.now()
+        test_time = endtime - context.user_data['quiz']['starttime']
+        test_time_minutes = test_time.seconds / 60
+
+        if test_time_minutes > DURATION:
+            msg.bot.send_message(msg.chat_id,
+                                 text=f'Ти не встиг пройти тест вчасно :(',
+                                 reply_markup=telegram.ReplyKeyboardRemove())
+            return
+
+        msg.bot.send_message(msg.chat_id,
+                             text=f'Тест пройдено!',
+                             reply_markup=telegram.ReplyKeyboardRemove())
 
 
 def main():
+    # Зберігаємо контекст бота, щоб при перезапуску зчитувати його
     storage = PicklePersistence(filename='data.pickle')
     updater = Updater(token=TOKEN, persistence=storage, use_context=True)
     dp = updater.dispatcher
+
+    # Прив'язуємо функції відповідно до контенту повідомлень
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(MessageHandler(None, common_message))
+
     updater.start_polling()
     updater.idle()
 

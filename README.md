@@ -1,27 +1,32 @@
-Simple Quiz bot for Telegram
+Заготовка для квіз-боту в Telegram
 ============================
 
-This is an example of Quiz bot with some questions on Python programming.
+Це простий телеграм бот для тестів, змінений для проведення воркшопу по Python. 
 
-This bot is part of the "Python Programming" course at
-
-* [Institute for Applied System Analysis](http://iasa.kpi.ua) of
-* [National Technical University of Ukraine “Igor Sikorsky Kyiv Polytechnic Institute”](https://kpi.ua).
-
+Автор боту: https://github.com/makukha/quizbot 
 
 Quick start
 -----------
 
-1. Clone this repository:
+1. Склонуй репозиторій, або завантаж ZIP архів та розпакуй в папку проекту:
 
-        git clone https://github.com/makukha/quizbot
+        git clone https://github.com/Vilka284/quizbot_ULA_python_workshop.git
 
-1. Create your own Telegram bot in @BotFather and get the bot token.
+1. Створи власного бота через @BotFather і не загуби токен.
 
-1. Create file **token.txt** in bot's directory and put your token there.
+1. Встав у змінну **TOKEN** токен свого бота.
 
-1. Run the bot backend:
+1. Запустити бота:
 
         python3 main.py
 
-1. Open your bot in Telegram and start the quiz.
+1. Бот повинен бути доступний в телеграмі.
+
+Ідеї для самостійної роботи
+---------------------------
+
+1. Додати можливість проходити кілька різних тестів.
+
+1. Додати підрахунок оцінок за тест, лідерборд.
+
+1. Додати можливість здати тест на кращу оцінку.
